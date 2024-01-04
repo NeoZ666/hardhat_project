@@ -2,15 +2,16 @@ import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import Lock from "./artifacts/contracts/Lock.sol/Lock.json";
 
-const LockAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
+const LockAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 function App() {
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(30);
   const [licensor, setLicensor] = useState("");
   const [account, setAccount] = useState("");
+  const [days, setDays] = useState(1);
 
   const requestAccount = async () => {
-    if (typeof window != "undefined" && typeof window.ethereum !== 'undefined') {
+    if (typeof window !== "undefined" && typeof window.ethereum !== 'undefined') {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         setAccount(accounts[0]);
@@ -19,8 +20,7 @@ function App() {
         console.error(err);
       }
     }
-  }
-
+  };
 
   async function sendPayment() {
     if (!amount) return;
@@ -31,15 +31,17 @@ function App() {
       const web3 = new Web3(window.ethereum);
       const accounts = await web3.eth.getAccounts();
       const contract = new web3.eth.Contract(Lock.abi, LockAddress);
-      const transaction = await contract.methods
-        .receive({
+
+      try {
+        await contract.methods.receivePayment().send({
           value: web3.utils.toWei(amount, "ether"),
           from: accounts[0],
-        })
-        .send();
-
-      setAmount("");
-      console.log("Transaction Hash:", transaction.transactionHash);
+        });
+        setAmount("");
+        console.log("Payment Sent Successfully");
+      } catch (error) {
+        console.error("Error sending payment:", error);
+      }
     }
   }
 
@@ -52,18 +54,43 @@ function App() {
       const web3 = new Web3(window.ethereum);
       const accounts = await web3.eth.getAccounts();
       const contract = new web3.eth.Contract(Lock.abi, LockAddress);
-      const transaction = await contract.methods
-        .updateLicensor(licensor)
-        .send({ from: accounts[0] });
 
-      setLicensor("");
-      console.log("Transaction Hash:", transaction.transactionHash);
+      try {
+        const transaction = await contract.methods
+          .updateLicensor(licensor)
+          .send({ from: accounts[0] });
+
+        setLicensor("");
+        console.log("Transaction Hash:", transaction.transactionHash);
+      } catch (error) {
+        console.error("Error updating licensor:", error);
+      }
     }
   }
 
+  async function emitEvent() {
+    if (window.ethereum) {
+        await requestAccount();
+
+        const web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        const contract = new web3.eth.Contract(Lock.abi, LockAddress);
+
+        try {
+            await contract.methods.emitMusicDetails(100, amount, "My Song").send({ from: accounts[0] });
+            console.log("Event emitted successfully");
+        } catch (error) {
+            console.error("Error emitting event:", error);
+        }
+    }
+  }
   useEffect(() => {
     requestAccount();
   }, []);
+
+  useEffect(() => {
+    setAmount(30 * days);
+  }, [days]);
 
   return (
     <div className="App">
@@ -77,12 +104,21 @@ function App() {
           <button onClick={updateLicensor} style={{ backgroundColor: "red" }}>
             Update Licensor
           </button>
+          <button onClick={emitEvent} style={{ backgroundColor: "blue" }}>
+            Emit Event
+          </button>
         </div>
+
+      <div>
+        Total Payable Amount: {amount} ETH
+      </div>
+      <div className="custom-input">
+        Enter Number of Days:
         <input
-          onChange={(e) => setAmount(e.target.value)}
-          value={amount}
-          placeholder="Enter payment amount"
-        />
+          type="text"
+          onChange={(e) => setDays(e.target.value)}
+          placeholder="Enter Number of Days"
+        /></div>
         <input
           onChange={(e) => setLicensor(e.target.value)}
           value={licensor}

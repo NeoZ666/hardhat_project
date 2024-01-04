@@ -6,16 +6,21 @@ contract Lock {
 
     event PaymentReceived(address indexed from, uint256 amount);
     event LicensorUpdated(address indexed oldLicensor, address indexed newLicensor);
+    event MusicDetailsEvent(uint256 fee, uint256 daysToAccess, string musicalWork);
+
+    function emitMusicDetails(uint256 _fee, uint256 _daysToAccess, string memory _musicalWork) external {
+        emit MusicDetailsEvent(_fee, _daysToAccess, _musicalWork);
+    }
 
     constructor() {
         licensor = msg.sender;
     }
 
-    receive() external payable {
+    function receivePayment() external payable {
         require(msg.sender != licensor, "Licensor cannot pay itself");
-
-        // Perform any additional logic or emit events as needed
         emit PaymentReceived(msg.sender, msg.value);
+        // Directly send the funds to the licensor
+        payable(licensor).transfer(msg.value);
     }
 
     function getBalance() external view returns (uint256) {
@@ -28,12 +33,5 @@ contract Lock {
 
         emit LicensorUpdated(licensor, newLicensor);
         licensor = newLicensor;
-    }
-
-    function withdrawFunds() external {
-        require(msg.sender == licensor, "Only licensor can withdraw funds");
-
-        // Transfer the entire contract balance to the licensor
-        payable(licensor).transfer(address(this).balance);
     }
 }
